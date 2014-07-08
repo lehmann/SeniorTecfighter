@@ -1,0 +1,30 @@
+{
+	"participantes": [{
+		"nome": "participante 1",
+		"username": "part1"
+	},
+	{
+		"nome": "participante 2",
+		"username": "part2"
+	},
+	{
+		"nome": "participante 3",
+		"username": "part3"
+	},
+	{
+		"nome": "participante 4",
+		"username": "part4"
+	},
+	{
+		"nome": "participante 5",
+		"username": "part5"
+	},
+	{
+		"nome": "participante 6",
+		"username": "part6"
+	}],
+	"brindes": ["Camiseta G",
+	"Camiseta M",
+	"Mouse pad",
+	"Mochila"]
+}
