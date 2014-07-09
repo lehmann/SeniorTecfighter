@@ -25,7 +25,17 @@
 			if (reply.status === 'ok') {
 				$('.container-fluid').text(reply.content);
 			} else {
-				console.error('Failed to retrieve albums: ' + reply.content);
+				console.error('Failed to get participantes: ' + reply.content);
+			}
+		});
+	});
+
+	$('#load-participantes').on('click', function() {
+		eb.send('load-participantes-palestra', {time: 'now'}, function(reply) {
+			if (reply.status === 'ok') {
+				$('.container-participantes').text(reply.content);
+			} else {
+				console.error('Failed to retrieve participantes: ' + reply.error);
 			}
 		});
 	});

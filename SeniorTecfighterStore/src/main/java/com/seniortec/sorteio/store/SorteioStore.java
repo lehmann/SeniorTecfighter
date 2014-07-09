@@ -27,65 +27,71 @@ public class SorteioStore extends Verticle {
 	private final class ParticipantePalestraLoader implements Handler<Message<JsonObject>> {
 		@Override
 		public void handle(Message<JsonObject> arg0) {
-			if (arg0.body().getString("time").equals("now")) {
-				String now = new SimpleDateFormat().format(new Date());
-				// se não houve a carga dos participantes do dia de hoje
-				ResourceIterator<Node> iterator = graphDb
-						.findNodesByLabelAndProperty(Papeis.DIA_SORTEIO, "Dia",
-								now).iterator();
-				if (!iterator.hasNext()) {
-					// lê o arquivo e carrega
-					Buffer fileContent = vertx.fileSystem().readFileSync(
-							"./data/participantes.txt");
-					SorteioDiario sorteio = Json.decodeValue(
-							fileContent.toString(), SorteioDiario.class);
+			try {
 
-					Transaction tx = graphDb.beginTx();
-					Node diaNode = graphDb.createNode(Papeis.DIA_SORTEIO);
-					diaNode.setProperty("Dia", now);
-					String[] brindes = sorteio.getBrindes();
-					for (int i = 0; i < brindes.length; i++) {
-						Node brindeNode = graphDb.createNode(Papeis.BRINDE);
-						brindeNode.setProperty("Nome", brindes[i]);
-						diaNode.createRelationshipTo(brindeNode,
-								Relacoes.BRINDE_DO_DIA);
-						brindeNode.createRelationshipTo(diaNode,
-								Relacoes.SORTEADO_EM);
-					}
-					Participante[] participantes = sorteio.getParticipantes();
-					for (int i = 0; i < participantes.length; i++) {
-						ResourceIterator<Node> partIterator = graphDb
-								.findNodesByLabelAndProperty(
-										Papeis.PARTICIPANTE, "Username",
-										participantes[i].getUsername())
-								.iterator();
-						Node participanteNode;
-						if (!partIterator.hasNext()) {
-							participanteNode = graphDb
-									.createNode(Papeis.PARTICIPANTE);
-							participanteNode.setProperty("Nome",
-									participantes[i].getNome());
-							participanteNode.setProperty("Username",
-									participantes[i].getUsername());
-						} else {
-							participanteNode = partIterator.next();
+				if (arg0.body().getString("time").equals("now")) {
+					String now = new SimpleDateFormat().format(new Date());
+					// se não houve a carga dos participantes do dia de hoje
+					ResourceIterator<Node> iterator = graphDb
+							.findNodesByLabelAndProperty(Papeis.DIA_SORTEIO, "Dia",
+									now).iterator();
+					if (!iterator.hasNext()) {
+						// lê o arquivo e carrega
+						Buffer fileContent = vertx.fileSystem().readFileSync(
+								"./data/participantes.txt");
+						SorteioDiario sorteio = Json.decodeValue(
+								fileContent.toString(), SorteioDiario.class);
+
+						Transaction tx = graphDb.beginTx();
+						Node diaNode = graphDb.createNode(Papeis.DIA_SORTEIO);
+						diaNode.setProperty("Dia", now);
+						String[] brindes = sorteio.getBrindes();
+						for (int i = 0; i < brindes.length; i++) {
+							Node brindeNode = graphDb.createNode(Papeis.BRINDE);
+							brindeNode.setProperty("Nome", brindes[i]);
+							diaNode.createRelationshipTo(brindeNode,
+									Relacoes.BRINDE_DO_DIA);
+							brindeNode.createRelationshipTo(diaNode,
+									Relacoes.SORTEADO_EM);
 						}
-						diaNode.createRelationshipTo(participanteNode,
-								Relacoes.PARTICIPANTE_DO_DIA);
-						participanteNode.createRelationshipTo(diaNode,
-								Relacoes.PARTICIPOU_EM);
-						ResourceIterator<Node> fotosIterator = graphDb
-								.findNodesByLabelAndProperty(Papeis.FOTO,
-										"Username",
-										participantes[i].getUsername())
-								.iterator();
-						if (!fotosIterator.hasNext()) {
-							vertx.eventBus().publish("load-foto",
-									participantes[i].getUsername());
+						Participante[] participantes = sorteio.getParticipantes();
+						for (int i = 0; i < participantes.length; i++) {
+							ResourceIterator<Node> partIterator = graphDb
+									.findNodesByLabelAndProperty(
+											Papeis.PARTICIPANTE, "Username",
+											participantes[i].getUsername())
+									.iterator();
+							Node participanteNode;
+							if (!partIterator.hasNext()) {
+								participanteNode = graphDb
+										.createNode(Papeis.PARTICIPANTE);
+								participanteNode.setProperty("Nome",
+										participantes[i].getNome());
+								participanteNode.setProperty("Username",
+										participantes[i].getUsername());
+							} else {
+								participanteNode = partIterator.next();
+							}
+							diaNode.createRelationshipTo(participanteNode,
+									Relacoes.PARTICIPANTE_DO_DIA);
+							participanteNode.createRelationshipTo(diaNode,
+									Relacoes.PARTICIPOU_EM);
+							ResourceIterator<Node> fotosIterator = graphDb
+									.findNodesByLabelAndProperty(Papeis.FOTO,
+											"Username",
+											participantes[i].getUsername())
+									.iterator();
+							if (!fotosIterator.hasNext()) {
+								vertx.eventBus().publish("load-foto",
+										participantes[i].getUsername());
+							}
 						}
+						tx.success();
 					}
-					tx.success();
+					arg0.reply(new JsonObject().putString("status", "ok").putString("content", "Conteúdo carregado com sucesso"));
 				}
+			} catch (Exception e) {
+				arg0.reply(new JsonObject().putString("status", "not ok").putString("content", "Erro ao carregar arquivo").putString("error", e.getMessage()));
 			}
 		}
 	}
