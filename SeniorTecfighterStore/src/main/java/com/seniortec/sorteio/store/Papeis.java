@@ -4,5 +4,5 @@ import org.neo4j.graphdb.Label;
 
 public enum Papeis implements Label {
 
-	PARTICIPANTE, DIA_SORTEIO, FOTO, BRINDE;
+	PARTICIPANTE, NAO_SORTEADO, PALESTRA, FOTO, BRINDE;
 }

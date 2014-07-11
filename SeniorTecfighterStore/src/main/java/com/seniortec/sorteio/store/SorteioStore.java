@@ -1,10 +1,18 @@
 package com.seniortec.sorteio.store;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.neo4j.cypher.javacompat.ExecutionEngine;
+import org.neo4j.cypher.javacompat.ExecutionResult;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
@@ -15,6 +23,7 @@ import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.eventbus.impl.JsonObjectMessage;
+import org.vertx.java.core.file.FileSystem;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
@@ -24,125 +33,215 @@ import org.vertx.java.platform.Verticle;
 
 public class SorteioStore extends Verticle {
 
-	private final class ParticipantePalestraLoader implements Handler<Message<JsonObject>> {
+	private final class ParticipantePalestraLoader implements
+			Handler<Message<JsonObject>> {
 		@Override
 		public void handle(Message<JsonObject> arg0) {
+			JsonObject ret = new JsonObject();
 			try {
 
 				if (arg0.body().getString("time").equals("now")) {
-					String now = new SimpleDateFormat().format(new Date());
-					// se não houve a carga dos participantes do dia de hoje
-					ResourceIterator<Node> iterator = graphDb
-							.findNodesByLabelAndProperty(Papeis.DIA_SORTEIO, "Dia",
-									now).iterator();
-					if (!iterator.hasNext()) {
-						// lê o arquivo e carrega
-						Buffer fileContent = vertx.fileSystem().readFileSync(
-								"./data/participantes.txt");
-						SorteioDiario sorteio = Json.decodeValue(
-								fileContent.toString(), SorteioDiario.class);
-
-						Transaction tx = graphDb.beginTx();
-						Node diaNode = graphDb.createNode(Papeis.DIA_SORTEIO);
-						diaNode.setProperty("Dia", now);
-						String[] brindes = sorteio.getBrindes();
-						for (int i = 0; i < brindes.length; i++) {
-							Node brindeNode = graphDb.createNode(Papeis.BRINDE);
-							brindeNode.setProperty("Nome", brindes[i]);
-							diaNode.createRelationshipTo(brindeNode,
-									Relacoes.BRINDE_DO_DIA);
-							brindeNode.createRelationshipTo(diaNode,
-									Relacoes.SORTEADO_EM);
-						}
-						Participante[] participantes = sorteio.getParticipantes();
-						for (int i = 0; i < participantes.length; i++) {
-							ResourceIterator<Node> partIterator = graphDb
-									.findNodesByLabelAndProperty(
-											Papeis.PARTICIPANTE, "Username",
-											participantes[i].getUsername())
-									.iterator();
-							Node participanteNode;
-							if (!partIterator.hasNext()) {
-								participanteNode = graphDb
-										.createNode(Papeis.PARTICIPANTE);
-								participanteNode.setProperty("Nome",
-										participantes[i].getNome());
-								participanteNode.setProperty("Username",
-										participantes[i].getUsername());
-							} else {
-								participanteNode = partIterator.next();
-							}
-							diaNode.createRelationshipTo(participanteNode,
-									Relacoes.PARTICIPANTE_DO_DIA);
-							participanteNode.createRelationshipTo(diaNode,
-									Relacoes.PARTICIPOU_EM);
-							ResourceIterator<Node> fotosIterator = graphDb
-									.findNodesByLabelAndProperty(Papeis.FOTO,
-											"Username",
-											participantes[i].getUsername())
-									.iterator();
-							if (!fotosIterator.hasNext()) {
-								vertx.eventBus().publish("load-foto",
-										participantes[i].getUsername());
-							}
-						}
-						tx.success();
-					}
-					arg0.reply(new JsonObject().putString("status", "ok").putString("content", "Conteúdo carregado com sucesso"));
+					carregaParticipantes();
+					arg0.reply(ret.putString("status", "ok").putString(
+							"content", "Conteúdo carregado com sucesso"));
 				}
 			} catch (Exception e) {
-				arg0.reply(new JsonObject().putString("status", "not ok").putString("content", "Erro ao carregar arquivo").putString("error", e.getMessage()));
+				arg0.reply(ret.putString("status", "not ok")
+						.putString("content", "Erro ao carregar arquivo")
+						.putString("error", e.getMessage()));
 			}
 		}
 	}
 
-	private final class ParticipantePalestraGetter implements Handler<Message<JsonObject>> {
+	private final class ParticipantePalestraGetter implements
+			Handler<Message<JsonObject>> {
 
 		@Override
 		public void handle(Message<JsonObject> arg0) {
+			JsonObject ret = new JsonObject();
 			if (arg0.body().getString("time").equals("now")) {
-				String now = new SimpleDateFormat().format(new Date());
-				Transaction tx = graphDb.beginTx();
-				ResourceIterator<Node> iterator = graphDb
-						.findNodesByLabelAndProperty(Papeis.DIA_SORTEIO, "Dia",
-								now).iterator();
-				tx.failure();
+				try (Transaction ignored = graphDb.beginTx()) {
+					FileSystem fs = vertx.fileSystem();
+					String[] readDirSync = fs.readDirSync("./data/");
+					String dia = readDirSync[0].substring(
+							"participantes-".length(),
+							readDirSync[0].indexOf(".txt"));
+					ResourceIterator<Node> iterator = graphDb
+							.findNodesByLabelAndProperty(Papeis.PALESTRA,
+									"Dia", dia).iterator();
+					try {
+						if (!iterator.hasNext()) {
+							SorteioStore.this.carregaParticipantes();
+						}
+					} finally {
+						iterator.close();
+					}
+					ExecutionResult result = engine
+							.execute("MATCH (n:PARTICIPANTE{Sorteado: 'false'}) return n.Username, n.Name");
+					ResourceIterator<Map<String, Object>> iteratorParticipantes = result
+							.iterator();
+					try {
+						if (!iteratorParticipantes.hasNext()) {
+							arg0.reply(ret
+									.putString("status", "not ok")
+									.putString("error",
+											"É um deserto isso aqui? Nenhum participante encontrado."));
+							return;
+						}
+						ret = ret.putString("status", "ok");
+						List<JsonObject> participantes = new ArrayList<>();
+						while (iteratorParticipantes.hasNext()) {
+							Map<java.lang.String, java.lang.Object> map = (Map<java.lang.String, java.lang.Object>) iteratorParticipantes
+									.next();
+							participantes.add(new JsonObject(map));
+						}
+						arg0.reply(ret.putArray(
+								"participantes",
+								new JsonArray(participantes
+										.toArray(new JsonObject[participantes
+												.size()]))));
+						return;
+					} finally {
+						iteratorParticipantes.close();
+					}
+				}
 			}
-			arg0.reply(new JsonObject().putString("status", "ok").putString("content", "Resposta"));
+			arg0.reply(ret.putString("status", "ok").putString("content",
+					"Resposta"));
 		}
+	}
 
+	private void carregaParticipantes() {
+		// se não houve a carga dos participantes do dia de hoje
+		Transaction tx = graphDb.beginTx();
+		FileSystem fs = vertx.fileSystem();
+		String[] readDirSync = fs.readDirSync("./data/");
+		String fileName = readDirSync[0];
+		String dia = fileName.substring(fileName.indexOf("participantes-")
+				+ "participantes-".length(), fileName.indexOf(".txt"));
+		ResourceIterator<Node> iterator = graphDb.findNodesByLabelAndProperty(
+				Papeis.PALESTRA, "Dia", dia).iterator();
+		if (!iterator.hasNext()) {
+			// lê o arquivo e carrega
+			Buffer fileContent = fs.readFileSync(fileName);
+			SorteioDiario sorteio = Json.decodeValue(fileContent.toString(),
+					SorteioDiario.class);
+
+			Node diaNode = graphDb.createNode(Papeis.PALESTRA);
+			diaNode.setProperty("Dia", dia);
+			Participante[] participantes = sorteio.getParticipantes();
+			for (int i = 0; i < participantes.length; i++) {
+				ResourceIterator<Node> partIterator = graphDb
+						.findNodesByLabelAndProperty(Papeis.PARTICIPANTE,
+								"Username", participantes[i].getUsername())
+						.iterator();
+				try {
+					Node participanteNode;
+					if (!partIterator.hasNext()) {
+						participanteNode = graphDb.createNode(
+								Papeis.PARTICIPANTE, Papeis.NAO_SORTEADO);
+						participanteNode.setProperty("Nome",
+								participantes[i].getNome());
+						participanteNode.setProperty("Username",
+								participantes[i].getUsername());
+					} else {
+						participanteNode = partIterator.next();
+					}
+					diaNode.createRelationshipTo(participanteNode,
+							Relacoes.PARTICIPANTE_DO_DIA);
+					participanteNode.createRelationshipTo(diaNode,
+							Relacoes.PARTICIPOU_EM);
+				} finally {
+					partIterator.close();
+				}
+			}
+			tx.success();
+		} else {
+			tx.failure();
+		}
 	}
 
 	private final class SorteioHandler implements Handler<Message<JsonObject>> {
 
 		@Override
 		public void handle(Message<JsonObject> arg0) {
+			JsonObject ret = new JsonObject();
 			if (arg0.body().getString("time").equals("now")) {
-				String now = new SimpleDateFormat().format(new Date());
 				Transaction tx = graphDb.beginTx();
-				ResourceIterator<Node> iterator = graphDb
-						.findNodesByLabelAndProperty(Papeis.DIA_SORTEIO, "Dia",
-								now).iterator();
-				tx.failure();
+				FileSystem fs = vertx.fileSystem();
+				String[] readDirSync = fs.readDirSync("./data/");
+				String dia = readDirSync[0].substring(
+						"participantes-".length(),
+						readDirSync[0].indexOf(".txt"));
+				ResourceIterator<Node> iteratorSorteioDoDia = graphDb
+						.findNodesByLabelAndProperty(Papeis.PALESTRA, "Dia",
+								dia).iterator();
+				try {
+					if (!iteratorSorteioDoDia.hasNext()) {
+						SorteioStore.this.carregaParticipantes();
+					}
+				} finally {
+					iteratorSorteioDoDia.close();
+				}
+				tx.success();
+				try (Transaction ignored = graphDb.beginTx()) {
+					ExecutionResult result = engine
+							.execute("MATCH (n:PARTICIPANTE:NAO_SORTEADO) return n.Username AS Username, n.Nome AS Nome");
+					ResourceIterator<Map<String, Object>> iterator = result
+							.iterator();
+					if (!iterator.hasNext()) {
+						arg0.reply(ret
+								.putString("status", "not ok")
+								.putString("error",
+										"Muita gente sortuda por aqui. TODO mundo já ganhou!"));
+						return;
+					}
+					ret = ret.putString("status", "ok");
+					List<JsonObject> sortudos = new ArrayList<>();
+					while (iterator.hasNext()) {
+						Map<java.lang.String, java.lang.Object> map = (Map<java.lang.String, java.lang.Object>) iterator
+								.next();
+						sortudos.add(new JsonObject(map));
+					}
+					int sortudosSize = sortudos.size();
+					int theBiggestSortudo = new Random(System.nanoTime())
+							.nextInt(sortudosSize);
+					JsonObject value = sortudos.get(theBiggestSortudo);
+					HashMap<String, Object> params = new HashMap<>();
+					params.put("user", value.getString("Username"));
+					result = engine
+							.execute(
+									"MATCH (n:PARTICIPANTE { Username: {user} }) remove n :NAO_SORTEADO return n",
+									params);
+					arg0.reply(ret.putObject("sortudo", value));
+					return;
+				}
 			}
-			arg0.reply(new JsonObject().putString("status", "ok").putString("content", "Resposta"));
+			arg0.reply(ret.putString("status", "ok").putString("content",
+					"Resposta"));
 		}
 
 	}
 
 	private GraphDatabaseService graphDb;
+	private ExecutionEngine engine;
 	private static final String DB_PATH = "./SeniorTec.db";
 
 	@Override
 	public void start() {
 		graphDb = new GraphDatabaseFactory()
 				.newEmbeddedDatabaseBuilder(DB_PATH)
-				.loadPropertiesFromURL(this.getClass().getClassLoader().getResource("./config/configuration.db"))
+				.loadPropertiesFromURL(
+						this.getClass().getClassLoader()
+								.getResource("./config/configuration.db"))
 				.newGraphDatabase();
+		engine = new ExecutionEngine(graphDb);
 		registerShutdownHook(graphDb);
 		EventBus bus = vertx.eventBus();
-		bus.registerHandler("load-participantes-palestra", new ParticipantePalestraLoader());
-		bus.registerHandler("get-participantes-palestra", new ParticipantePalestraGetter());
+		bus.registerHandler("load-participantes-palestra",
+				new ParticipantePalestraLoader());
+		bus.registerHandler("get-participantes-palestra",
+				new ParticipantePalestraGetter());
 		bus.registerHandler("sorteio", new SorteioHandler());
 		HttpServer server = vertx.createHttpServer();
 		SockJSServer sockJSServer = vertx.createSockJSServer(server);
@@ -150,9 +249,9 @@ public class SorteioStore extends Verticle {
 		config.putString("prefix", "/eventbus");
 		JsonArray permitted = new JsonArray();
 		permitted.add(new JsonObject());
-		
-		sockJSServer.bridge(config, permitted, permitted );
-		
+
+		sockJSServer.bridge(config, permitted, permitted);
+
 		server.listen(8081);
 	}
 

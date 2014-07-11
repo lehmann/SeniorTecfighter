@@ -40,25 +40,13 @@
 		});
 	});
 
-	eb.onclose = function() {
-		eb = null;
-	};
-
-	function Album(json) {
-		var that = this;
-		that._id = json.ID;
-		that.genre = json.GENRE;
-		that.artist = json.ARTIST;
-		that.title = json.TITLE;
-		that.price = json.PRICE;
-		that.formattedPrice = ko.computed(function() {
-			return '$' + that.price.toFixed(2);
+	$('#sorteio').on('click', function() {
+		eb.send('sorteio', {time: 'now'}, function(reply) {
+			if (reply.status === 'ok') {
+				$('.container-sorteio').text(reply.sortudo.Username);
+			} else {
+				console.error('Failed to retrieve participantes: ' + reply.error);
+			}
 		});
-	}
-
-	function CartItem(album) {
-		var that = this;
-		that.album = album;
-		that.quantity = ko.observable(1);
-	}
+	});
 })();
