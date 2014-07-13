@@ -1,15 +1,14 @@
 package com.seniortec.sorteio.store;
 
-import java.text.SimpleDateFormat;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.neo4j.cypher.javacompat.ExecutionEngine;
 import org.neo4j.cypher.javacompat.ExecutionResult;
@@ -22,8 +21,6 @@ import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.eventbus.impl.JsonObjectMessage;
-import org.vertx.java.core.file.FileSystem;
 import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
@@ -61,8 +58,7 @@ public class SorteioStore extends Verticle {
 			JsonObject ret = new JsonObject();
 			if (arg0.body().getString("time").equals("now")) {
 				try (Transaction ignored = graphDb.beginTx()) {
-					FileSystem fs = vertx.fileSystem();
-					String[] readDirSync = fs.readDirSync("./data/");
+					String[] readDirSync = new File("./data/").list();
 					String dia = readDirSync[0].substring(
 							"participantes-".length(),
 							readDirSync[0].indexOf(".txt"));
@@ -77,7 +73,7 @@ public class SorteioStore extends Verticle {
 						iterator.close();
 					}
 					ExecutionResult result = engine
-							.execute("MATCH (n:PARTICIPANTE{Sorteado: 'false'}) return n.Username, n.Name");
+							.execute("MATCH (n:PARTICIPANTE:NAO_SORTEADO) return n.Username AS Username, n.Nome AS Nome");
 					ResourceIterator<Map<String, Object>> iteratorParticipantes = result
 							.iterator();
 					try {
@@ -85,7 +81,7 @@ public class SorteioStore extends Verticle {
 							arg0.reply(ret
 									.putString("status", "not ok")
 									.putString("error",
-											"É um deserto isso aqui? Nenhum participante encontrado."));
+											"Muita gente sortuda por aqui. TODO mundo já ganhou!"));
 							return;
 						}
 						ret = ret.putString("status", "ok");
@@ -114,8 +110,7 @@ public class SorteioStore extends Verticle {
 	private void carregaParticipantes() {
 		// se não houve a carga dos participantes do dia de hoje
 		Transaction tx = graphDb.beginTx();
-		FileSystem fs = vertx.fileSystem();
-		String[] readDirSync = fs.readDirSync("./data/");
+		String[] readDirSync = new File("./data/").list();
 		String fileName = readDirSync[0];
 		String dia = fileName.substring(fileName.indexOf("participantes-")
 				+ "participantes-".length(), fileName.indexOf(".txt"));
@@ -123,8 +118,13 @@ public class SorteioStore extends Verticle {
 				Papeis.PALESTRA, "Dia", dia).iterator();
 		if (!iterator.hasNext()) {
 			// lê o arquivo e carrega
-			Buffer fileContent = fs.readFileSync(fileName);
-			SorteioDiario sorteio = Json.decodeValue(fileContent.toString(),
+			String content;
+			try {
+				content = new String(Files.readAllBytes(Paths.get("./data/" + fileName)));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			SorteioDiario sorteio = Json.decodeValue(content.toString(),
 					SorteioDiario.class);
 
 			Node diaNode = graphDb.createNode(Papeis.PALESTRA);
@@ -168,8 +168,7 @@ public class SorteioStore extends Verticle {
 			JsonObject ret = new JsonObject();
 			if (arg0.body().getString("time").equals("now")) {
 				Transaction tx = graphDb.beginTx();
-				FileSystem fs = vertx.fileSystem();
-				String[] readDirSync = fs.readDirSync("./data/");
+				String[] readDirSync = new File("./data/").list();
 				String dia = readDirSync[0].substring(
 						"participantes-".length(),
 						readDirSync[0].indexOf(".txt"));

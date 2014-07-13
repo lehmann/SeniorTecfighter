@@ -17,4 +17,5 @@
 <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="org.vertx.java.platform.impl.cli.Starter"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="run com.seniortec.sorteio.store.SorteioStore"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="SeniorTecfighterStore"/>
+<stringAttribute key="org.eclipse.jdt.launching.WORKING_DIRECTORY" value="${workspace_loc:SeniorTecfighterStore}\target"/>
 </launchConfiguration>

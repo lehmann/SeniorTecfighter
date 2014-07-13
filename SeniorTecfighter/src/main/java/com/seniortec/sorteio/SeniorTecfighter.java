@@ -11,7 +11,6 @@ public class SeniorTecfighter extends Verticle {
 
 	@Override
 	public void start() {
-		this.vertx.eventBus().publish("load-participantes-palestra", "now");
 		HttpServer server = this.vertx.createHttpServer();
 		server.requestHandler(new Handler<HttpServerRequest>() {
 
@@ -21,9 +20,6 @@ public class SeniorTecfighter extends Verticle {
 				switch (event.path()) {
 				default:
 					if (event.path().equals("/")) {
-						event.response().sendFile("html/Seniortec.html");
-						return;
-					} else if (event.path().equals("/teste")) {
 						event.response().sendFile("html/index.html");
 						return;
 					} else {
