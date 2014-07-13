@@ -1,0 +1,19 @@
+@font-face {
+	font-family: Counter Strike;
+	src: URL(http://localhost:8080/fonts/cs_regular.ttf);
+}
+
+@font-face {
+	font-family: Street Fighter;
+	src: URL(http://localhost:8080/fonts/FEASFBRG.ttf);
+}
+
+@font-face {
+	font-family: Collegiate;
+	src: URL(http://localhost:8080/fonts/sf-collegiate.regular.ttf);
+}
+
+@font-face {
+	font-family: Middle Earth;
+	src: URL(http://localhost:8080/fonts/middle-earth-nf.regular.ttf);
+}
