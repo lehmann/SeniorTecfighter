@@ -18,7 +18,6 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServer;
@@ -57,7 +56,8 @@ public class SorteioStore extends Verticle {
 		public void handle(Message<JsonObject> arg0) {
 			JsonObject ret = new JsonObject();
 			if (arg0.body().getString("time").equals("now")) {
-				try (Transaction ignored = graphDb.beginTx()) {
+				Transaction ignored = graphDb.beginTx();
+				try {
 					String[] readDirSync = new File("./data/").list();
 					String dia = readDirSync[0].substring(
 							"participantes-".length(),
@@ -85,21 +85,23 @@ public class SorteioStore extends Verticle {
 							return;
 						}
 						ret = ret.putString("status", "ok");
-						List<JsonObject> participantes = new ArrayList<>();
+						List<Map<String, Object>> participantes = new ArrayList<>();
 						while (iteratorParticipantes.hasNext()) {
-							Map<java.lang.String, java.lang.Object> map = (Map<java.lang.String, java.lang.Object>) iteratorParticipantes
+							Map<String, Object> map = (Map<String, Object>) iteratorParticipantes
 									.next();
-							participantes.add(new JsonObject(map));
+							participantes.add(map);
 						}
 						arg0.reply(ret.putArray(
 								"participantes",
 								new JsonArray(participantes
-										.toArray(new JsonObject[participantes
+										.toArray(new Map[participantes
 												.size()]))));
 						return;
 					} finally {
 						iteratorParticipantes.close();
 					}
+				} finally {
+					ignored.success();
 				}
 			}
 			arg0.reply(ret.putString("status", "ok").putString("content",
@@ -117,45 +119,50 @@ public class SorteioStore extends Verticle {
 		ResourceIterator<Node> iterator = graphDb.findNodesByLabelAndProperty(
 				Papeis.PALESTRA, "Dia", dia).iterator();
 		if (!iterator.hasNext()) {
-			// lê o arquivo e carrega
-			String content;
 			try {
-				content = new String(Files.readAllBytes(Paths.get("./data/" + fileName)));
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-			SorteioDiario sorteio = Json.decodeValue(content.toString(),
-					SorteioDiario.class);
-
-			Node diaNode = graphDb.createNode(Papeis.PALESTRA);
-			diaNode.setProperty("Dia", dia);
-			Participante[] participantes = sorteio.getParticipantes();
-			for (int i = 0; i < participantes.length; i++) {
-				ResourceIterator<Node> partIterator = graphDb
-						.findNodesByLabelAndProperty(Papeis.PARTICIPANTE,
-								"Username", participantes[i].getUsername())
-						.iterator();
+				System.out.println("Carregando participantes do dia: " + dia);
+				// lê o arquivo e carrega
+				String content;
 				try {
-					Node participanteNode;
-					if (!partIterator.hasNext()) {
-						participanteNode = graphDb.createNode(
-								Papeis.PARTICIPANTE, Papeis.NAO_SORTEADO);
-						participanteNode.setProperty("Nome",
-								participantes[i].getNome());
-						participanteNode.setProperty("Username",
-								participantes[i].getUsername());
-					} else {
-						participanteNode = partIterator.next();
-					}
-					diaNode.createRelationshipTo(participanteNode,
-							Relacoes.PARTICIPANTE_DO_DIA);
-					participanteNode.createRelationshipTo(diaNode,
-							Relacoes.PARTICIPOU_EM);
-				} finally {
-					partIterator.close();
+					content = new String(Files.readAllBytes(Paths.get("./data/" + fileName)));
+				} catch (IOException e) {
+					throw new RuntimeException(e);
 				}
+				SorteioDiario sorteio = Json.decodeValue(content.toString(),
+						SorteioDiario.class);
+				
+				Node diaNode = graphDb.createNode(Papeis.PALESTRA);
+				diaNode.setProperty("Dia", dia);
+				Participante[] participantes = sorteio.getParticipantes();
+				for (int i = 0; i < participantes.length; i++) {
+					ResourceIterator<Node> partIterator = graphDb
+							.findNodesByLabelAndProperty(Papeis.PARTICIPANTE,
+									"Username", participantes[i].getUsername())
+									.iterator();
+					try {
+						Node participanteNode;
+						if (!partIterator.hasNext()) {
+							participanteNode = graphDb.createNode(
+									Papeis.PARTICIPANTE, Papeis.NAO_SORTEADO);
+							participanteNode.setProperty("Nome",
+									participantes[i].getNome());
+							participanteNode.setProperty("Username",
+									participantes[i].getUsername());
+						} else {
+							participanteNode = partIterator.next();
+						}
+						diaNode.createRelationshipTo(participanteNode,
+								Relacoes.PARTICIPANTE_DO_DIA);
+						participanteNode.createRelationshipTo(diaNode,
+								Relacoes.PARTICIPOU_EM);
+					} finally {
+						partIterator.close();
+					}
+				}
+				tx.success();
+			} catch (Exception e) {
+				tx.failure();
 			}
-			tx.success();
 		} else {
 			tx.failure();
 		}
@@ -168,22 +175,28 @@ public class SorteioStore extends Verticle {
 			JsonObject ret = new JsonObject();
 			if (arg0.body().getString("time").equals("now")) {
 				Transaction tx = graphDb.beginTx();
-				String[] readDirSync = new File("./data/").list();
-				String dia = readDirSync[0].substring(
-						"participantes-".length(),
-						readDirSync[0].indexOf(".txt"));
-				ResourceIterator<Node> iteratorSorteioDoDia = graphDb
-						.findNodesByLabelAndProperty(Papeis.PALESTRA, "Dia",
-								dia).iterator();
 				try {
-					if (!iteratorSorteioDoDia.hasNext()) {
-						SorteioStore.this.carregaParticipantes();
+					String[] readDirSync = new File("./data/").list();
+					String dia = readDirSync[0].substring(
+							"participantes-".length(),
+							readDirSync[0].indexOf(".txt"));
+					System.out.println("Dia: " + dia);
+					ResourceIterator<Node> iteratorSorteioDoDia = graphDb
+							.findNodesByLabelAndProperty(Papeis.PALESTRA, "Dia",
+									dia).iterator();
+					try {
+						if (!iteratorSorteioDoDia.hasNext()) {
+							System.out.println("Carregar ganhadores do dia de hoje");
+							SorteioStore.this.carregaParticipantes();
+						}
+					} finally {
+						iteratorSorteioDoDia.close();
 					}
 				} finally {
-					iteratorSorteioDoDia.close();
+					tx.success();
 				}
-				tx.success();
-				try (Transaction ignored = graphDb.beginTx()) {
+				Transaction ignored = graphDb.beginTx();
+				try  {
 					ExecutionResult result = engine
 							.execute("MATCH (n:PARTICIPANTE:NAO_SORTEADO) return n.Username AS Username, n.Nome AS Nome");
 					ResourceIterator<Map<String, Object>> iterator = result
@@ -214,6 +227,8 @@ public class SorteioStore extends Verticle {
 									params);
 					arg0.reply(ret.putObject("sortudo", value));
 					return;
+				} finally {
+					ignored.success();
 				}
 			}
 			arg0.reply(ret.putString("status", "ok").putString("content",
