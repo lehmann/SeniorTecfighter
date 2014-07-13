@@ -21,6 +21,9 @@ public class SeniorTecfighter extends Verticle {
 				switch (event.path()) {
 				default:
 					if (event.path().equals("/")) {
+						event.response().sendFile("html/Seniortec.html");
+						return;
+					} else if (event.path().equals("/teste")) {
 						event.response().sendFile("html/index.html");
 						return;
 					} else {
