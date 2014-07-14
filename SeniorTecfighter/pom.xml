@@ -83,11 +83,6 @@
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.neo4j</groupId>
-			<artifactId>neo4j</artifactId>
-			<version>2.1.2</version>
-		</dependency>
-		<dependency>
 			<groupId>com.seniortec.sorteio</groupId>
 			<artifactId>SeniorTecfighterStore</artifactId>
 			<version>0.1-beta</version>
