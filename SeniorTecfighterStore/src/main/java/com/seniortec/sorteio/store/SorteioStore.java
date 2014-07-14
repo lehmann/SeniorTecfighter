@@ -33,18 +33,23 @@ public class SorteioStore extends Verticle {
 			Handler<Message<JsonObject>> {
 		@Override
 		public void handle(Message<JsonObject> arg0) {
-			JsonObject ret = new JsonObject();
 			try {
+				loadGraphDb();
+				JsonObject ret = new JsonObject();
+				try {
 
-				if (arg0.body().getString("time").equals("now")) {
-					carregaParticipantes();
-					arg0.reply(ret.putString("status", "ok").putString(
-							"content", "Conteúdo carregado com sucesso"));
+					if (arg0.body().getString("time").equals("now")) {
+						carregaParticipantes();
+						arg0.reply(ret.putString("status", "ok").putString(
+								"content", "Conteúdo carregado com sucesso"));
+					}
+				} catch (Exception e) {
+					arg0.reply(ret.putString("status", "not ok")
+							.putString("content", "Erro ao carregar arquivo")
+							.putString("error", e.getMessage()));
 				}
-			} catch (Exception e) {
-				arg0.reply(ret.putString("status", "not ok")
-						.putString("content", "Erro ao carregar arquivo")
-						.putString("error", e.getMessage()));
+			} finally {
+				graphDb.shutdown();
 			}
 		}
 	}
@@ -54,58 +59,64 @@ public class SorteioStore extends Verticle {
 
 		@Override
 		public void handle(Message<JsonObject> arg0) {
-			JsonObject ret = new JsonObject();
-			if (arg0.body().getString("time").equals("now")) {
-				Transaction ignored = graphDb.beginTx();
-				try {
-					String[] readDirSync = new File("./data/").list();
-					String dia = readDirSync[0].substring(
-							"participantes-".length(),
-							readDirSync[0].indexOf(".txt"));
-					ResourceIterator<Node> iterator = graphDb
-							.findNodesByLabelAndProperty(Papeis.PALESTRA,
-									"Dia", dia).iterator();
+			try {
+				loadGraphDb();
+				JsonObject ret = new JsonObject();
+				if (arg0.body().getString("time").equals("now")) {
+					Transaction ignored = graphDb.beginTx();
 					try {
-						if (!iterator.hasNext()) {
-							SorteioStore.this.carregaParticipantes();
+						String[] readDirSync = new File("./data/").list();
+						String dia = readDirSync[0].substring(
+								"participantes-".length(),
+								readDirSync[0].indexOf(".txt"));
+						ResourceIterator<Node> iterator = graphDb
+								.findNodesByLabelAndProperty(Papeis.PALESTRA,
+										"Dia", dia).iterator();
+						try {
+							if (!iterator.hasNext()) {
+								SorteioStore.this.carregaParticipantes();
+							}
+						} finally {
+							iterator.close();
 						}
-					} finally {
-						iterator.close();
-					}
-					ExecutionResult result = engine
-							.execute("MATCH (n:PARTICIPANTE:NAO_SORTEADO) return n.Username AS Username, n.Nome AS Nome");
-					ResourceIterator<Map<String, Object>> iteratorParticipantes = result
-							.iterator();
-					try {
-						if (!iteratorParticipantes.hasNext()) {
-							arg0.reply(ret
-									.putString("status", "not ok")
-									.putString("error",
-											"Muita gente sortuda por aqui. TODO mundo já ganhou!"));
+						ExecutionResult result = engine
+								.execute("MATCH (n:PARTICIPANTE:NAO_SORTEADO) return n.Username AS Username, n.Nome AS Nome");
+						ResourceIterator<Map<String, Object>> iteratorParticipantes = result
+								.iterator();
+						try {
+							if (!iteratorParticipantes.hasNext()) {
+								arg0.reply(ret
+										.putString("status", "not ok")
+										.putString("error",
+												"Muita gente sortuda por aqui. TODO mundo já ganhou!"));
+								return;
+							}
+							ret = ret.putString("status", "ok");
+							List<Map<String, Object>> participantes = new ArrayList<>();
+							while (iteratorParticipantes.hasNext()) {
+								Map<String, Object> map = (Map<String, Object>) iteratorParticipantes
+										.next();
+								participantes.add(map);
+							}
+							arg0.reply(ret.putArray(
+									"participantes",
+									new JsonArray(participantes
+											.toArray(new Map[participantes
+													.size()]))));
 							return;
+						} finally {
+							iteratorParticipantes.close();
 						}
-						ret = ret.putString("status", "ok");
-						List<Map<String, Object>> participantes = new ArrayList<>();
-						while (iteratorParticipantes.hasNext()) {
-							Map<String, Object> map = (Map<String, Object>) iteratorParticipantes
-									.next();
-							participantes.add(map);
-						}
-						arg0.reply(ret.putArray(
-								"participantes",
-								new JsonArray(participantes
-										.toArray(new Map[participantes
-												.size()]))));
-						return;
 					} finally {
-						iteratorParticipantes.close();
+						ignored.success();
 					}
-				} finally {
-					ignored.success();
 				}
+				arg0.reply(ret.putString("status", "ok").putString("content",
+						"Resposta"));
+
+			} finally {
+				graphDb.shutdown();
 			}
-			arg0.reply(ret.putString("status", "ok").putString("content",
-					"Resposta"));
 		}
 	}
 
@@ -124,13 +135,14 @@ public class SorteioStore extends Verticle {
 				// lê o arquivo e carrega
 				String content;
 				try {
-					content = new String(Files.readAllBytes(Paths.get("./data/" + fileName)));
+					content = new String(Files.readAllBytes(Paths.get("./data/"
+							+ fileName)));
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
 				SorteioDiario sorteio = Json.decodeValue(content.toString(),
 						SorteioDiario.class);
-				
+
 				Node diaNode = graphDb.createNode(Papeis.PALESTRA);
 				diaNode.setProperty("Dia", dia);
 				Participante[] participantes = sorteio.getParticipantes();
@@ -138,7 +150,7 @@ public class SorteioStore extends Verticle {
 					ResourceIterator<Node> partIterator = graphDb
 							.findNodesByLabelAndProperty(Papeis.PARTICIPANTE,
 									"Username", participantes[i].getUsername())
-									.iterator();
+							.iterator();
 					try {
 						Node participanteNode;
 						if (!partIterator.hasNext()) {
@@ -172,67 +184,69 @@ public class SorteioStore extends Verticle {
 
 		@Override
 		public void handle(Message<JsonObject> arg0) {
-			JsonObject ret = new JsonObject();
-			if (arg0.body().getString("time").equals("now")) {
-				Transaction tx = graphDb.beginTx();
-				try {
-					String[] readDirSync = new File("./data/").list();
-					String dia = readDirSync[0].substring(
-							"participantes-".length(),
-							readDirSync[0].indexOf(".txt"));
-					System.out.println("Dia: " + dia);
-					ResourceIterator<Node> iteratorSorteioDoDia = graphDb
-							.findNodesByLabelAndProperty(Papeis.PALESTRA, "Dia",
-									dia).iterator();
-					try {
-						if (!iteratorSorteioDoDia.hasNext()) {
-							System.out.println("Carregar ganhadores do dia de hoje");
-							SorteioStore.this.carregaParticipantes();
+			try {
+				loadGraphDb();
+				JsonObject ret = new JsonObject();
+				if (arg0.body().getString("time").equals("now")) {
+					try (Transaction tx = graphDb.beginTx()) {
+						String[] readDirSync = new File("./data/").list();
+						String dia = readDirSync[0].substring(
+								"participantes-".length(),
+								readDirSync[0].indexOf(".txt"));
+						System.out.println("Dia: " + dia);
+						ResourceIterator<Node> iteratorSorteioDoDia = graphDb
+								.findNodesByLabelAndProperty(Papeis.PALESTRA,
+										"Dia", dia).iterator();
+						try {
+							if (!iteratorSorteioDoDia.hasNext()) {
+								System.out
+										.println("Carregar participantes do dia de hoje");
+								SorteioStore.this.carregaParticipantes();
+							}
+						} finally {
+							iteratorSorteioDoDia.close();
 						}
-					} finally {
-						iteratorSorteioDoDia.close();
+						tx.success();
 					}
-				} finally {
-					tx.success();
-				}
-				Transaction ignored = graphDb.beginTx();
-				try  {
-					ExecutionResult result = engine
-							.execute("MATCH (n:PARTICIPANTE:NAO_SORTEADO) return n.Username AS Username, n.Nome AS Nome");
-					ResourceIterator<Map<String, Object>> iterator = result
-							.iterator();
-					if (!iterator.hasNext()) {
-						arg0.reply(ret
-								.putString("status", "not ok")
-								.putString("error",
-										"Muita gente sortuda por aqui. TODO mundo já ganhou!"));
+					try (Transaction ignored = graphDb.beginTx()) {
+						ExecutionResult result = engine
+								.execute("MATCH (n:PARTICIPANTE:NAO_SORTEADO) return n.Username AS Username, n.Nome AS Nome");
+						ResourceIterator<Map<String, Object>> iterator = result
+								.iterator();
+						if (!iterator.hasNext()) {
+							arg0.reply(ret
+									.putString("status", "not ok")
+									.putString("error",
+											"Muita gente sortuda por aqui. TODO mundo já ganhou!"));
+							return;
+						}
+						ret = ret.putString("status", "ok");
+						List<JsonObject> sortudos = new ArrayList<>();
+						while (iterator.hasNext()) {
+							Map<java.lang.String, java.lang.Object> map = (Map<java.lang.String, java.lang.Object>) iterator
+									.next();
+							sortudos.add(new JsonObject(map));
+						}
+						int sortudosSize = sortudos.size();
+						int theBiggestSortudo = new Random(System.nanoTime())
+								.nextInt(sortudosSize);
+						JsonObject value = sortudos.get(theBiggestSortudo);
+						HashMap<String, Object> params = new HashMap<>();
+						params.put("user", value.getString("Username"));
+						result = engine
+								.execute(
+										"MATCH (n:PARTICIPANTE { Username: {user} }) remove n :NAO_SORTEADO return n",
+										params);
+						arg0.reply(ret.putObject("sortudo", value));
+						ignored.success();
 						return;
 					}
-					ret = ret.putString("status", "ok");
-					List<JsonObject> sortudos = new ArrayList<>();
-					while (iterator.hasNext()) {
-						Map<java.lang.String, java.lang.Object> map = (Map<java.lang.String, java.lang.Object>) iterator
-								.next();
-						sortudos.add(new JsonObject(map));
-					}
-					int sortudosSize = sortudos.size();
-					int theBiggestSortudo = new Random(System.nanoTime())
-							.nextInt(sortudosSize);
-					JsonObject value = sortudos.get(theBiggestSortudo);
-					HashMap<String, Object> params = new HashMap<>();
-					params.put("user", value.getString("Username"));
-					result = engine
-							.execute(
-									"MATCH (n:PARTICIPANTE { Username: {user} }) remove n :NAO_SORTEADO return n",
-									params);
-					arg0.reply(ret.putObject("sortudo", value));
-					return;
-				} finally {
-					ignored.success();
 				}
+				arg0.reply(ret.putString("status", "ok").putString("content",
+						"Resposta"));
+			} finally {
+				graphDb.shutdown();
 			}
-			arg0.reply(ret.putString("status", "ok").putString("content",
-					"Resposta"));
 		}
 
 	}
@@ -243,14 +257,6 @@ public class SorteioStore extends Verticle {
 
 	@Override
 	public void start() {
-		graphDb = new GraphDatabaseFactory()
-				.newEmbeddedDatabaseBuilder(DB_PATH)
-				.loadPropertiesFromURL(
-						this.getClass().getClassLoader()
-								.getResource("./config/configuration.db"))
-				.newGraphDatabase();
-		engine = new ExecutionEngine(graphDb);
-		registerShutdownHook(graphDb);
 		EventBus bus = vertx.eventBus();
 		bus.registerHandler("load-participantes-palestra",
 				new ParticipantePalestraLoader());
@@ -267,6 +273,21 @@ public class SorteioStore extends Verticle {
 		sockJSServer.bridge(config, permitted, permitted);
 
 		server.listen(8081);
+	}
+
+	private void loadGraphDb() {
+		graphDb = new GraphDatabaseFactory()
+				.newEmbeddedDatabaseBuilder(DB_PATH)
+				.loadPropertiesFromURL(
+						this.getClass().getClassLoader()
+								.getResource("./config/configuration.db"))
+				.newGraphDatabase();
+		engine = new ExecutionEngine(graphDb);
+	}
+
+	@Override
+	public void stop() {
+		super.stop();
 	}
 
 	private static void registerShutdownHook(final GraphDatabaseService graphDb) {
