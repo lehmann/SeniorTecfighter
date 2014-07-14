@@ -17,34 +17,91 @@
 	$(document).ready(function(){
 		var eb = new vertx.EventBus('http://'
 				+ window.location.hostname + ':8081' + '/eventbus');
+		
+		
+		
 		$('#coluna-sorteio').click(function() {
 			// Aqui faz a firula de ficar mostrando várias fotos até chegar a hora de mostrar o sortudo, digo, sorteado.
 			//setInterval(function() { console.log("setInterval: Ja passou 1 segundo!"); }, 1000);
 			
+			var contador = 0;
+			var tempo = 100;
+			var total = 0;
+			var totalParcial = 0;
+			var totalg1 = 0;
+			var totalg2 = 0;
+			var totalg3 = 0;
+			var interval = 0;
+			
+			var feliz; // (:
+			
+			sorteio();
+			
 			eb.send('get-participantes-palestra', {time: 'now'}, function(reply) {
 				if(reply.status === 'ok') {
-					var obj = JSON.parse(reply.participantes);
+					var obj = reply.participantes;
 					var atual = 0;
-					setInterval(function() {mudaFotos(atual, obj.length, "images/" + obj[atual].src + ".png")}, 1500);
-			
+					var username = obj[atual].Username;
+					var nome = obj[atual].Nome;
+					
+					total = obj.length;
+					
+				    // primeiro grupo= total / 3
+					var terco = Math.round(total / 3);
+					totalg1 = Math.round(terco * 0.7);
+					totalg2 = Math.round(terco * 0.2);
+					totalg3 = Math.round(terco * 0.1);
+					contador = 0;
+					
+					// Exemplo do incremento circular: atual = (atual + 1) % total;
+					totalParcial = totalg1;
+					interval = setInterval(function() {atual = mudaFotos(atual, totalParcial, "images/" + obj[atual].Username + ".png")}, tempo);
 			}});
 			
 			function mudaFotos(atualP, totalP, imagePath) {
-				if(atualP < totalP) {
+				if(contador < totalP) {
 					$('#img-sorteio').attr("src", imagePath);
-					atualP = atualP + 1;
+					if ((contador+1) === totalg1 ) {
+						tempo = 200;
+						totalParcial = totalg1 + totalg2; 
+					} else if ((contador+1) === (totalg1 + totalg2)){
+						tempo = 400;
+						totalParcial = totalg1 + totalg2 + totalg3; 
+					}
+					contador++;
+					return ((atualP + 1) % total);
+				} else {
+					clearInterval(interval);
+					botaFelizardoNaTela();
 				}
 			}
-			
-			eb.send('sorteio', {time: 'now'}, function(reply) {
-				if (reply.status === 'ok') {
-					// Aqui busca a imagem, usando reply.username
-					// E depois deve setar na célula
-					$('#sorteado-div').text(reply.realname);
-				} else {
-					console.error('Failed to retrieve participantes: ' + reply.error);
-				}
-			});
+
+			function botaFelizardoNaTela() {
+				$('#sorteado_div').text(feliz.sortudo.Nome);
+				$('#sorteado_div').css("visibility", "visible");
+				$('#youwin_div').css("visibility", "visible");
+				document.getElementById('audioFeliz').play();
+			}
+
+			function sorteio() {
+				eb.send('sorteio', {time: 'now'}, function(reply) {
+					if (reply.status === 'ok') {
+						feliz = reply;
+					} else {
+						console.error('Failed to retrieve participantes: ' + reply.error);
+					}
+				});
+			}
 			
 		});
+		
+		$(document).keypress(function(e) {
+		    if(e.which === 13) { // colocar o ENTER do teclado número também.
+		    	if(!$('#personagens').is('visible')) {
+		    		$('#start').css("opacity", "0");
+		    		$('#personagens').css("visibility", "visible");
+		    	}
+		    }
+		});
+		
 		});
