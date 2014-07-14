@@ -17,10 +17,16 @@
 	$(document).ready(function(){
 		var eb = new vertx.EventBus('http://'
 				+ window.location.hostname + ':8081' + '/eventbus');
-		
-		
+		var sound = new Audio("audio/videoplayback.wav");
+		sound.preload = 'auto';
+		sound.load();
 		
 		$('#coluna-sorteio').click(function() {
+			$('#sorteado_div').text("");
+			$('#sorteado_div').css("visibility", "hidden");
+			$('#img-sorteio').attr("src", "images/_boneco-seniortec.png");
+			$('#youwin_div').css("visibility", "hidden");
+			
 			// Aqui faz a firula de ficar mostrando várias fotos até chegar a hora de mostrar o sortudo, digo, sorteado.
 			//setInterval(function() { console.log("setInterval: Ja passou 1 segundo!"); }, 1000);
 			
@@ -79,8 +85,10 @@
 			function botaFelizardoNaTela() {
 				$('#sorteado_div').text(feliz.sortudo.Nome);
 				$('#sorteado_div').css("visibility", "visible");
-				$('#youwin_div').css("visibility", "visible");
-				document.getElementById('audioFeliz').play();
+				$('#img-sorteio').attr("src", feliz.sortudo.username);
+				$('#youwin_div').css("visibility", "visible");				
+				var click=sound.cloneNode();
+				click.play();
 			}
 
 			function sorteio() {
@@ -99,7 +107,7 @@
 		    if(e.which === 13) { // colocar o ENTER do teclado número também.
 		    	if(!$('#personagens').is('visible')) {
 		    		$('#start').css("opacity", "0");
-		    		$('#personagens').css("visibility", "visible");
+		    		$('#personagens').css("visibility", "visible");		    		
 		    	}
 		    }
 		});
