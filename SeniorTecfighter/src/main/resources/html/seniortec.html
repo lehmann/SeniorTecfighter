@@ -2,10 +2,38 @@
 <html>
   
   <head data-gwd-animation-mode="quickMode">
+    <script src="js3rdparty/jquery-1.7.1.min.js"></script>
+    <script src="js3rdparty/sockjs-min-0.3.4.js"></script>
+    <script src="js/vertxbus.js"></script>
+    <script src="js/client_app_seniortec.js"></script>
     <title>SorteioSeniortec</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="generator" content="Google Web Designer 1.0.6.0428">
     <style type="text/css">
+      @font-face {
+        font-family: Seniortec;
+        src: url(http://localhost:8080/fonts/UTSAAH_0.ttf);
+      }
+      @font-face {
+        font-family: Zrnic;
+        src: url(http://localhost:8080/fonts/zrnic.regular.ttf);
+      }
+      @font-face {
+        font-family:'Counter Strike';
+        src: url(http://localhost:8080/fonts/cs_regular.ttf);
+      }
+      @font-face {
+        font-family:'Street Fighter';
+        src: url(http://localhost:8080/fonts/FEASFBRG.ttf);
+      }
+      @font-face {
+        font-family: Collegiate;
+        src: url(http://localhost:8080/fonts/sf-collegiate.regular.ttf);
+      }
+      @font-face {
+        font-family:'Middle Earth';
+        src: url(http://localhost:8080/fonts/middle-earth-nf.regular.ttf);
+      }
       html, body {
         width: 100%;
         height: 100%;
@@ -16,123 +44,54 @@
         -webkit-transform: perspective(1400px) matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
         -webkit-transform-style: preserve-3d;
       }
-      .gwd-img-c4y3 {
+      .imagem-fundo {
         position: absolute;
-        width: 100%;
-        height: 100%;
+        color: rgb(0, 0, 0);
         left: 0px;
         top: 0px;
-        -webkit-transform-style: preserve-3d;
-        -webkit-transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-        color: rgb(0, 0, 0);
+        width: 100%;
+        height: 100%;
       }
-      .gwd-img-kigz {
+      .logo-seniortec {
         position: absolute;
-        width: 428px;
-        height: 207px;
         left: 33%;
         top: 3%;
+        height: 207px;
+        width: 428px;
       }
-      .gwd-span-wnva {
-        font-family: Ubuntu;
-        font-size: 50px;
-      }
-      .gwd-div-t5x3 {
+      .texto-start {
+      	font-family: Collegiate;
+        color: rgb(64, 45, 22);
+        font-size: 100px;
         position: absolute;
         width: 100%;
         height: 40px;
-        font-family:'Times New Roman';
         text-align: center;
-        color: rgb(0, 0, 0);
         -webkit-transform-origin: 50% 50% 0px;
         border-image-source: none;
         overflow: visible;
         border-color: rgb(0, 0, 0);
         left: 0px;
-        top: 251px;
-        -webkit-transform-style: preserve-3d;
-        -webkit-transform: translate3d(0px, 0px, -1px);
+        top: 50%;
+        opacity: 1;
       }
-      .gwd-gen-onlbgwdanimation {
-        -webkit-animation: gwd-gen-onlbgwdanimation_animation 5.5s linear 0s 1 forwards;
+      
+   .blink {
+  animation: blink 2s infinite;
+  -webkit-animation: blink 1s steps(5, start) infinite;
+	}
+	@keyframes blink {
+  to { visibility: hidden; }
+	}
+	@-webkit-keyframes blink {
+  to { visibility: hidden; }
+	}
+      
+      
+      .animacao-texto-start {
+        -webkit-animation: animacao-texto-start_animation 5.5s linear 0s 1 forwards;
       }
-      .gwd-gen-yj1lgwdanimation {
-        -webkit-animation: gwd-gen-yj1lgwdanimation_animation 5.5s linear 0s 1 forwards;
-      }
-      .gwd-gen-tddhgwdanimation {
-        -webkit-animation: gwd-gen-tddhgwdanimation_animation 5.5s linear 0s 1 forwards;
-      }
-      @-webkit-keyframes gwd-gen-onlbgwdanimation_animation {
-        0% {
-          -webkit-animation-timing-function: linear;
-        }
-        20% {
-          -webkit-animation-timing-function: linear;
-        }
-        38.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        40% {
-          -webkit-animation-timing-function: linear;
-        }
-        58.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        60% {
-          -webkit-animation-timing-function: linear;
-        }
-        78.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        80% {
-          -webkit-animation-timing-function: linear;
-        }
-        98.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        100% {
-          -webkit-animation-timing-function: linear;
-        }
-        18.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-      }
-      @-webkit-keyframes gwd-gen-yj1lgwdanimation_animation {
-        0% {
-          -webkit-animation-timing-function: linear;
-        }
-        20% {
-          -webkit-animation-timing-function: linear;
-        }
-        38.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        40% {
-          -webkit-animation-timing-function: linear;
-        }
-        58.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        60% {
-          -webkit-animation-timing-function: linear;
-        }
-        78.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        80% {
-          -webkit-animation-timing-function: linear;
-        }
-        98.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-        100% {
-          -webkit-animation-timing-function: linear;
-        }
-        18.1818% {
-          -webkit-animation-timing-function: linear;
-        }
-      }
-      @-webkit-keyframes gwd-gen-tddhgwdanimation_animation {
+      @-webkit-keyframes animacao-texto-start_animation {
         0% {
           -webkit-animation-timing-function: linear;
           -webkit-transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
@@ -177,17 +136,104 @@
           -webkit-animation-timing-function: linear;
           -webkit-transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
         }
+      }
+      .estilo-tabela {
+        position: absolute;
+        border-collapse: collapse;
+        top: 45%;
+        height: auto;
+        width: 60%;
+        left: 20%;
+        visibility: hidden;
+      }
+      .td-seniortec {
+      	border-style: inset;
+      	border-width: 7px;
+        border-color: rgb(89, 70, 47);
+        
+        text-align: center;
+      }
+      .texto-sorteado {
+      	font-family: Seniortec;
+        font-weight: bold;
+        color: rgb(64, 45, 22);
+        font-size: 80px;
+        position: absolute;
+        text-align: center;
+        width: 80%;
+        left: 10%;
+        height: auto;
+        top: 35%;
+		visibility: hidden;
+      }
+	  .texto-youwin {
+		font-family:'Street Fighter';
+        color: rgb(64, 45, 22);
+        font-size: 85px;
+        position: absolute;
+        text-align: center;
+        width: 80%;
+        left: 10%;
+        height: auto;
+        top: 85%;
+		visibility: hidden;
       }
     </style>
-    <link href="https://fonts.googleapis.com/css?family=Ubuntu" rel="stylesheet" type="text/css">
   </head>
   
   <body>
-    <img src="images/fundo-telacheia_1.png" class="gwd-img-c4y3 gwd-gen-f9zvgwdanimation gwd-gen-4k8wgwdanimation gwd-gen-onlbgwdanimation">
-    <img src="images/logo-seniortec.png" class="gwd-img-kigz gwd-gen-eke7gwdanimation gwd-gen-8glagwdanimation gwd-gen-yj1lgwdanimation">
-    <div class="gwd-div-t5x3 gwd-gen-b6wjgwdanimation gwd-gen-s3g2gwdanimation gwd-gen-tddhgwdanimation"><span class="gwd-span-wnva">PRESS START</span>
+    <img src="images/fundo-telacheia_1.png" class="imagem-fundo">
+	
+    <img src="images/logo-seniortec.png" class="logo-seniortec" id="seniortec_logo">
+	
+    <div class="texto-start blink" id="start"><span class="start">PRESS START</span>
 
     </div>
+    <table class="estilo-tabela" id="personagens">
+      <tbody>
+        <tr>
+          <td class="td-seniortec">
+            <img src="images\_blanka.png" width="100%" height="auto/">
+          </td>
+          <td class="td-seniortec">
+            <img src="images\_dhalsim.png" width="100%" height="auto/">
+          </td>
+          <td class="td-seniortec" width="33.3%" rowspan="2" id="coluna-sorteio">
+            <img src="images\_boneco-seniortec.png" width="100%" height="auto/" id="img-sorteio">
+          </td>
+          <td class="td-seniortec">
+            <img src="images\_ken.png" width="100%" height="auto/">
+          </td>
+          <td class="td-seniortec">
+            <img src="images\_ryu.png" width="100%" height="auto/">
+          </td>
+        </tr>
+        <tr>
+          <td class="td-seniortec">
+            <img src="images\_mbison.png" width="100%" height="auto/">
+          </td>
+          <td class="td-seniortec">
+            <img src="images\_chunli.png" width="100%" height="auto/">
+          </td>
+          <td class="td-seniortec">
+            <img src="images\_zangief.png" width="100%" height="auto/">
+          </td>
+          <td class="td-seniortec">
+            <img src="images\_honda.png" width="100%" height="auto/">
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="texto-sorteado" id="sorteado_div"><span>Teste</span>
+
+    </div>
+    <div class="texto-youwin" id="youwin_div"><span>YOU WIN!</span>
+
+    </div>
+    <audio id="audioFeliz">
+      <source src="audio/videoplayback.wav" type="audio/wav">
+    </audio>
   </body>
 
+</html>
 </html>
