@@ -85,7 +85,7 @@
 			function botaFelizardoNaTela() {
 				$('#sorteado_div').text(feliz.sortudo.Nome);
 				$('#sorteado_div').css("visibility", "visible");
-				$('#img-sorteio').attr("src", feliz.sortudo.username);
+				$('#img-sorteio').attr("src", "images/" + feliz.sortudo.Username + ".png");
 				$('#youwin_div').css("visibility", "visible");				
 				var click=sound.cloneNode();
 				click.play();
