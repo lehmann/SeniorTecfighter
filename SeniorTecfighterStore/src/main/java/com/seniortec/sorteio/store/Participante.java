@@ -4,7 +4,6 @@ public class Participante {
 
 	private String nome;
 	private String username;
-	private boolean sorteado;
 
 	public String getUsername() {
 		return username;
@@ -20,14 +19,6 @@ public class Participante {
 
 	public void setNome(String nome) {
 		this.nome = nome;
-	}
-
-	public boolean isSorteado() {
-		return sorteado;
-	}
-
-	public void setSorteado(boolean sorteado) {
-		this.sorteado = sorteado;
 	}
 
 }

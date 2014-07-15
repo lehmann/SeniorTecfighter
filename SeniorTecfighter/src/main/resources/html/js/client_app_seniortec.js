@@ -83,21 +83,23 @@
 			}
 
 			function botaFelizardoNaTela() {
-				$('#sorteado_div').text(feliz.sortudo.Nome);
-				$('#sorteado_div').css("visibility", "visible");
-				$('#img-sorteio').attr("src", "images/" + feliz.sortudo.Username + ".png");
-				$('#youwin_div').css("visibility", "visible");				
-				var click=sound.cloneNode();
-				click.play();
+				if(feliz.status === 'ok') {
+					$('#sorteado_div').text(feliz.sortudo.Nome);
+					$('#sorteado_div').css("visibility", "visible");
+					$('#img-sorteio').attr("src", "images/" + feliz.sortudo.Username + ".png");
+					$('#youwin_div').css("visibility", "visible");				
+					var click=sound.cloneNode();
+					click.play();
+				} else {
+					$('#sorteado_div').text(feliz.content);
+					$('#sorteado_div').css("visibility", "visible");
+					$('#img-sorteio').attr("src", "images/_boneco-seniortec.png");
+				}
 			}
 
 			function sorteio() {
 				eb.send('sorteio', {time: 'now'}, function(reply) {
-					if (reply.status === 'ok') {
-						feliz = reply;
-					} else {
-						console.error('Failed to retrieve participantes: ' + reply.error);
-					}
+					feliz = reply;
 				});
 			}
 			

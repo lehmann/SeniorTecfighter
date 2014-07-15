@@ -47,11 +47,8 @@ public class SorteioStore extends Verticle {
 					participantes.add(map);
 				}
 				ret = ret.putString("status", "ok");
-				arg0.reply(ret.putArray(
-						"participantes",
-						new JsonArray(participantes
-								.toArray(new Map[participantes
-										.size()]))));
+				arg0.reply(ret.putArray("participantes", new JsonArray(
+						participantes.toArray(new Map[participantes.size()]))));
 				return;
 			}
 			arg0.reply(ret.putString("status", "ok").putString("content",
@@ -73,29 +70,33 @@ public class SorteioStore extends Verticle {
 						readDirSync[0].indexOf(".txt"));
 				System.out.println("Dia: " + dia);
 				SorteioDiario diario = getDataFile(dia);
+				SorteioDiario sortudos = getSortudosFile();
 
 				ret = ret.putString("status", "ok");
-				List<Participante> sortudos = Arrays.asList(diario
+				List<Participante> participantes = Arrays.asList(diario
 						.getParticipantes());
-				int sortudosSize = sortudos.size();
+				int sortudosSize = participantes.size();
 				Random random = new Random(System.nanoTime());
 				int theBiggestSortudo = random.nextInt(sortudosSize);
-				Participante value = sortudos.get(theBiggestSortudo);
-				while (value.isSorteado()) {
+				Participante value = participantes.get(theBiggestSortudo);
+				for (int i = 0; sortudos.contains(value)
+						&& i < sortudos.getParticipantes().length; i++) {
 					theBiggestSortudo = random.nextInt(sortudosSize);
-					value = sortudos.get(theBiggestSortudo);
+					value = participantes.get(theBiggestSortudo);
 				}
-				value.setSorteado(true);
-				storeDataFile(dia, diario);
-				arg0.reply(ret.putObject(
-						"sortudo",
-						new JsonObject().putString("Username",
-								value.getUsername()).putString("Nome",
-								value.getNome())));
+				if (!sortudos.contains(value)) {
+					sortudos.addParticipantes(value);
+					storeDataFile(dia, diario);
+					storeSortudosFile(sortudos);
+					arg0.reply(ret.putObject("sortudo", new JsonObject()
+							.putString("Username", value.getUsername())
+							.putString("Nome", value.getNome())));
+				} else {
+					arg0.reply(new JsonObject().putString("status", "not ok").putString("content", "Muito pé de coelho concentrado. TODO mundo já ganhou!"));
+				}
 				return;
 			}
-			arg0.reply(ret.putString("status", "ok").putString("content",
-					"Resposta"));
+			arg0.reply(ret.putString("content", "Resposta"));
 		}
 
 	}
@@ -123,9 +124,24 @@ public class SorteioStore extends Verticle {
 	public void storeDataFile(String dia, SorteioDiario diario) {
 		String fileName = "participantes-" + dia + ".txt";
 
-		File dbFolder = new File(DB_PATH, fileName);
+		File dataFile = new File(DB_PATH, fileName);
 		String content = Json.encode(diario);
-		try (FileOutputStream fos = new FileOutputStream(dbFolder)) {
+		try (FileOutputStream fos = new FileOutputStream(dataFile)) {
+			fos.write(content.getBytes());
+			fos.flush();
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public void storeSortudosFile(SorteioDiario sortudos) {
+		String fileName = "Sortudos.db";
+
+		File dataFile = new File(DB_PATH, fileName);
+		String content = Json.encode(sortudos);
+		try (FileOutputStream fos = new FileOutputStream(dataFile)) {
 			fos.write(content.getBytes());
 			fos.flush();
 		} catch (FileNotFoundException e) {
@@ -137,6 +153,18 @@ public class SorteioStore extends Verticle {
 
 	public SorteioDiario getDataFile(String dia) {
 		String fileName = "participantes-" + dia + ".txt";
+		try {
+			byte[] readAllBytes = Files.readAllBytes(Paths.get(DB_PATH,
+					fileName));
+			return Json.decodeValue(new String(readAllBytes),
+					SorteioDiario.class);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public SorteioDiario getSortudosFile() {
+		String fileName = "Sortudos.db";
 		try {
 			byte[] readAllBytes = Files.readAllBytes(Paths.get(DB_PATH,
 					fileName));
@@ -177,6 +205,24 @@ public class SorteioStore extends Verticle {
 		File dbFolder = new File(DB_PATH);
 		if (!dbFolder.exists()) {
 			dbFolder.mkdir();
+		}
+		File sortudosFile = new File(DB_PATH, "Sortudos.db");
+		if (!sortudosFile.exists()) {
+			try {
+				sortudosFile.createNewFile();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			SorteioDiario sd = new SorteioDiario();
+			String content = Json.encode(sd);
+			try (FileOutputStream fos = new FileOutputStream(sortudosFile)) {
+				fos.write(content.getBytes());
+				fos.flush();
+			} catch (FileNotFoundException e) {
+				throw new RuntimeException(e);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 }
