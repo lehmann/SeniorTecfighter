@@ -71,6 +71,13 @@ public class SorteioStore extends Verticle {
 				System.out.println("Dia: " + dia);
 				SorteioDiario diario = getDataFile(dia);
 				SorteioDiario sortudos = getSortudosFile();
+				List<String> brindes = new ArrayList<String>(Arrays.asList(diario
+						.getBrindes()));
+				if(brindes.isEmpty()) {
+					ret = ret.putString("status", "not ok").putString("content", "Acabaram os brindes por hoje :(");
+					arg0.reply(ret);
+					return;
+				}
 
 				ret = ret.putString("status", "ok");
 				List<Participante> participantes = Arrays.asList(diario
@@ -79,13 +86,21 @@ public class SorteioStore extends Verticle {
 				Random random = new Random(System.nanoTime());
 				int theBiggestSortudo = random.nextInt(sortudosSize);
 				Participante value = participantes.get(theBiggestSortudo);
-				for (int i = 0; sortudos.contains(value)
-						&& i < sortudos.getParticipantes().length; i++) {
+				Sorteado choosen = new Sorteado();
+				choosen.setUsername(value.getUsername());
+				choosen.setNome(value.getNome());
+				for (int i = 0; sortudos.contains(choosen)
+						&& i < diario.getParticipantes().length; i++) {
 					theBiggestSortudo = random.nextInt(sortudosSize);
 					value = participantes.get(theBiggestSortudo);
+					choosen.setUsername(value.getUsername());
+					choosen.setNome(value.getNome());
 				}
-				if (!sortudos.contains(value)) {
-					sortudos.addParticipantes(value);
+				if (!sortudos.contains(choosen)) {
+					choosen.setPalestra(dia);
+					choosen.setBrinde(brindes.remove(0));
+					diario.setBrindes(brindes.toArray(new String[brindes.size()]));
+					sortudos.addSorteado(choosen);
 					storeDataFile(dia, diario);
 					storeSortudosFile(sortudos);
 					arg0.reply(ret.putObject("sortudo", new JsonObject()

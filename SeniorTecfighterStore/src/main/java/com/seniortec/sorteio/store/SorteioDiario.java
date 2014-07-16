@@ -8,6 +8,7 @@ public class SorteioDiario {
 
 	private Participante[] participantes = new Participante[0];
 	private String[] brindes = new String[0];
+	private Sorteado[] sorteados = new Sorteado[0];
 
 	public String[] getBrindes() {
 		return brindes;
@@ -25,18 +26,26 @@ public class SorteioDiario {
 		this.participantes = participantes;
 	}
 
-	public boolean contains(Participante value) {
-		for (int i = 0; i < participantes.length; i++) {
-			if(participantes[i].getUsername().equals(value.getUsername())) {
+	public Sorteado[] getSorteados() {
+		return sorteados;
+	}
+
+	public void setSorteados(Sorteado[] sorteados) {
+		this.sorteados = sorteados;
+	}
+
+	public boolean contains(Sorteado value) {
+		for (int i = 0; i < sorteados.length; i++) {
+			if(sorteados[i].getUsername().equals(value.getUsername())) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	public void addParticipantes(Participante value) {
-		List<Participante> parts = new ArrayList<>(Arrays.asList(participantes));
+	public void addSorteado(Sorteado value) {
+		List<Sorteado> parts = new ArrayList<>(Arrays.asList(sorteados));
 		parts.add(value);
-		participantes = parts.toArray(new Participante[participantes.length]);
+		sorteados = parts.toArray(new Sorteado[participantes.length]);
 	}
 }
